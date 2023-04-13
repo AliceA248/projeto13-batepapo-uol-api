@@ -1,0 +1,21 @@
+{
+  "name": "projeto13-batepapo-uol-api",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "main":"./src/app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AliceA248/projeto13-batepapo-uol-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AliceA248/projeto13-batepapo-uol-api/issues"
+  },
+  "homepage": "https://github.com/AliceA248/projeto13-batepapo-uol-api#readme"
+}
