@@ -31,12 +31,22 @@ app.use(cors())
 
 // Rotas
 
+app.get("/participants", async (req, res) => {
+    try {
+        const todosParticipantes = await db.collection("participants").find().toArray()
+        res.send(todosParticipantes)
+    } catch (error) {
+        console.error(error)
+        res.status(500).send("O banco não está rodando corretamente")
+    }
+})
+
 app.post("/participants", async (req, res) => {
     const { name } = req.body
 
     const { error } = participantsValidação.validate({ name })
 
-    if (error) return res.status(442).send()
+    if (error) return res.status(422).send("")
 
     try {
         const nameCheck = await db.collection("participants").findOne({ name: name})
@@ -77,10 +87,5 @@ app.post("/participants", async (req, res) => {
 
 
 // Deixa o app escutando, à espera de requisições
-const PORT = 5000
+const PORT = 5001
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`))
-
-
-
-
-
