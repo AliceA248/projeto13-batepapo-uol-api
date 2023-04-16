@@ -19,7 +19,7 @@ try {
 }
 
 const participantsValidação =joi.object({
-    name: joi.string().required().min(2)
+    name: joi.string().required().trim()
 })
 
 // Criação do servidor
