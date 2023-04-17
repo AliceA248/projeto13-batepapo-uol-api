@@ -42,163 +42,174 @@ app.use(cors());
 
 app.get("/participants", async (req, res) => {
     try {
-      const todosParticipantes = await db.collection("participants").find().toArray();
+      const collection = client.db().collection("participants");
+      const participants = await collection.find().toArray();
   
-      if (!todosParticipantes.length) {
-        return res.send([]);
+      if (participants.length === 0) {
+        res.send([]);
+      } else {
+        res.send(participants);
       }
-  
-      res.send(todosParticipantes);
     } catch (error) {
       console.error(error);
-      res.status(500).send("O banco não está rodando corretamente");
+      res.status(500).send("Erro ao buscar participantes");
+    }
+  });
+
+app.post("/participants", async (req, res) => {
+    const { name } = req.body;
+  
+    try {
+      const participantesChat = await db.collection("participants").findOne({ name });
+  
+      if (participantesChat) {
+        return res.status(409).send("O usuário já existe");
+      }
+  
+      const { error } = participantsValidacao.validate({ name });
+  
+      if (error) {
+        return res.status(422).send(error.details.map((err) => err.message));
+      }
+  
+      const newParticipant = {
+        name,
+        lastStatus: Date.now(),
+      };
+  
+      const result = await db.collection("participants").insertOne(newParticipant);
+  
+      const newStatusMessage = {
+        from: name,
+        to: "Todos",
+        text: "Entra na sala....",
+        type: "status",
+        time: dayjs(Date.now()).format("HH:mm:ss"),
+      };
+  
+      await db.collection("messages").insertOne(newStatusMessage);
+  
+      res.status(201).send("Tudo certo!");
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("Ocorreu um erro no servidor");
     }
   });
   
-app.post("/participants", async (req, res) => {
-  const { name } = req.body;
 
-  const { error } = participantsValidacao.validate({ name });
-
-  if (error) {
-    return res.status(422).send(error.details.map((err) => err.message));
-  }
-
-  try {
-    const nameCheck = await db.collection("participants").findOne({ name });
-
-    if (nameCheck) {
-      return res.status(409).send("O usuário já existe");
-    }
-
-    await db.collection("participants").insertOne({
-      name,
-      lastStatus: Date.now(),
-    });
-
-    await db.collection("messages").insertOne({
-      from: name,
-      to: "Todos",
-      text: "Entra na sala....",
-      type: "status",
-      time: dayjs(Date.now()).format("HH:mm:ss"),
-    });
-
-    res.status(201).send("Tudo certo!");
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("Servidor não está rodando corretamente");
-  }
-});
-
-app.get("/messages", async (req, res) =>{
-    const { user } = req.headers
-    const limit = parseInt(req.query.limit)
-
+app.get("/messages", async (req, res) => {
+    const { user } = req.headers;
+    const limit = parseInt(req.query.limit);
+  
     try {
-
-        const todasMensagens = await db.collection("messages").find({ $or: [
+      const messages = await db.collection("messages")
+        .find({
+          $or: [
             { from: user },
-            { to: { $in: [user, "todos"]} },
+            { to: { $in: [user, "todos"] } },
             { type: "message" }
-        ]
-    }).limit(limit).toArray()
-
-        res.send(todasMensagens)
-        
+          ]
+        })
+        .sort({ time: -1 })
+        .limit(limit)
+        .toArray();
+  
+      res.send(messages);
     } catch (error) {
-        console.log(error)
-        res.status(500).send("Problema no servidor")
+      console.error(error);
+      res.status(500).send("Erro interno no servidor");
     }
-
-} )
+  });
+  
 
 app.post("/messages", async (req, res) => {
-  const { to, text, type } = req.body;
-  const { user } = req.headers;
-
-  const novaMensagem = {
-    from: utf8.decode(user),
-    to,
-    text,
-    type,
-    time: dayjs().format("HH:mm:ss"),
-  };
+    const { to, text, type } = req.body;
+    const { user } = req.headers;
   
-
-  const { error } = messageValidacaoTipo.validate({ to, text, type, from: user });
-
-  if (error) {
-    const erroMensagem = error.details.map((e) => e.message);
-    return res.status(422).send(erroMensagem);
-  }
-
-  try {
-    const participanteCadastrado = await db.collection("participants").findOne({ name: utf8.decode(user) })
-
-    if (!participanteCadastrado) return res.status(422)
-  
-  
-  
-    await db.collection("messages").insertOne({
-      ...novaMensagem,
+    const message = {
+      from: utf8.decode(user),
+      to,
+      text,
+      type,
       time: dayjs().format("HH:mm:ss"),
-    });
-  
-    res.status(201).send("Tudo rodando corretamente");
+    };
     
-  } catch (error) {
-    res.status(500).send("Não está rodando corretamente no banco de dados")
-  }
-
-
-});
+    const { error } = messageValidacaoTipo.validate({ to, text, type, from: user });
+  
+    if (error) {
+      const errors = error.details.map((e) => e.message);
+      return res.status(422).send(errors);
+    }
+  
+    try {
+      const participant = await db.collection("participants").findOne({ name: utf8.decode(user) })
+  
+      if (!participant) {
+        return res.status(422).send("Participante não cadastrado");
+      }
+    
+      await db.collection("messages").insertOne(message);
+    
+      res.status(201).send("Mensagem enviada com sucesso");
+      
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("Erro ao enviar a mensagem");
+    }
+  });
+  
 
 app.post("/status", async (req, res) => {
-    const { user } = req.headers
-
+    const { user } = req.headers;
+  
     try {
-
-        const participanteCadastrado = await db.collection("participants").findOne({ name: user })
-        if (!participanteCadastrado) return res.status(404)
-
-        await db.collection("participants").updateOne({ name: user}, { $set: { lastStatus: Date.now() }})
-
-        res.sendStatus(200)
-        
+      const participanteCadastrado = await db.collection("participants").findOne({ name: user });
+  
+      if (!participanteCadastrado) {
+        return res.status(404).send("Participante não encontrado");
+      }
+  
+      await db.collection("participants").updateOne(
+        { name: user },
+        { $set: { lastStatus: Date.now() } }
+      );
+  
+      res.sendStatus(200);
     } catch (error) {
-        res.status(500).send("Erro no banco de dados")
-        
+      console.error(error);
+      res.status(500).send("Erro ao atualizar status do participante");
     }
-})
+  });
+  
 
-setInterval(async() => {
-    const menosDez = Date.now() - 100000
-
+setInterval(async () => {
+    const menosDez = Date.now() - 100000;
+  
     try {
-        const inativos = await db.collection("participants").find({ lastStatus: { $lte: menosDez } }).toArray()
-
-        if (inativos.length > 0) {
-            const mensagensInativas = inativos.map((participant) => {
-                return {
-                    from: participant.name,
-                    to: "todos",
-                    text: "sai da sala...", type:"status", time: dayjs.format("HH:mm:ss")
-
-                }
-            })
-            await db.collection("messages").insertMany(mensagensInativas)
-            await db.collection("participants").deleteMany(
-                { lastStatus: { $lte: menosDez } }
-            )
-        }
-
+      const inativos = await db.collection("participants")
+        .find({ lastStatus: { $lte: menosDez } })
+        .toArray();
+  
+      if (inativos.length > 0) {
+        const mensagensInativas = inativos.map((participant) => {
+          return {
+            from: participant.name,
+            to: "todos",
+            text: "sai da sala...",
+            type: "status",
+            time: dayjs.format("HH:mm:ss")
+          };
+        });
+  
+        await db.collection("messages").insertMany(mensagensInativas);
+        await db.collection("participants").deleteMany({ lastStatus: { $lte: menosDez } });
+      }
     } catch (error) {
-        console.log(error)
-        res.status(500).send("Erro no setInterval")
+      console.log(error);
+      res.status(500).send("Erro no setInterval");
     }
-}, 15000
-)
+  }, 15000);
+  
 
 
 // Deixa o app escutando, à espera de requisições
