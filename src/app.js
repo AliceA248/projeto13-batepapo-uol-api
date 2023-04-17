@@ -101,11 +101,6 @@ app.get("/participants", async (req, res) => {
   app.get("/messages", async (req, res) => {
     const { user } = req.headers;
     const limit = parseInt(req.query.limit);
-    const limitSchema = joi.object({
-        limit: joi.number().integer().positive().min(1)
-    })
-    const validation = limitSchema.validate(limit)
-    if ( validation.error) return res.sendStatus(422)
     try {
       const messages = await db
         .collection("messages")
