@@ -42,7 +42,7 @@ app.use(cors());
 
 app.get("/participants", async (req, res) => {
     try {
-      const collection = client.db().collection("participants");
+      const collection = db.collection("participants");
       const participants = await collection.find().toArray();
   
       if (participants.length === 0) {
@@ -55,14 +55,14 @@ app.get("/participants", async (req, res) => {
       res.status(500).send("Erro ao buscar participantes");
     }
   });
-
-app.post("/participants", async (req, res) => {
+  
+  app.post("/participants", async (req, res) => {
     const { name } = req.body;
   
     try {
-      const participantesChat = await db.collection("participants").findOne({ name });
+      const participant = await db.collection("participants").findOne({ name });
   
-      if (participantesChat) {
+      if (participant) {
         return res.status(409).send("O usuário já existe");
       }
   
@@ -96,19 +96,21 @@ app.post("/participants", async (req, res) => {
     }
   });
   
+  
 
-app.get("/messages", async (req, res) => {
+  app.get("/messages", async (req, res) => {
     const { user } = req.headers;
     const limit = parseInt(req.query.limit);
   
     try {
-      const messages = await db.collection("messages")
+      const messages = await db
+        .collection("messages")
         .find({
           $or: [
             { from: user },
-            { to: { $in: [user, "todos"] } },
-            { type: "message" }
-          ]
+            { to: { $in: [user, "Todos"] } },
+            { type: "message" },
+          ],
         })
         .sort({ time: -1 })
         .limit(limit)
@@ -120,6 +122,7 @@ app.get("/messages", async (req, res) => {
       res.status(500).send("Erro interno no servidor");
     }
   });
+  
   
 
 app.post("/messages", async (req, res) => {
@@ -243,5 +246,5 @@ app.delete("/participants", async (req, res) => {
   
 
 // Deixa o app escutando, à espera de requisições
-const PORT = 5000;
+const PORT = 5001;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
