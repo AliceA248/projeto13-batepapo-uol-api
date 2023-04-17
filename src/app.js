@@ -191,12 +191,12 @@ app.post("/messages", async (req, res) => {
     const inatividade = Date.now() - 10000;
   
     try {
-      const inactiveParticipants = await db.collection("participants")
+      const inativos = await db.collection("participants")
         .find({ lastStatus: { $lte: inatividade } })
         .toArray();
   
-      if (inactiveParticipants.length > 0) {
-        const inactiveMessages = inactiveParticipants.map((participant) => {
+      if (inativos.length > 0) {
+        const inactiveMessages = inativos.map((participant) => {
           return {
             from: participant.name,
             to: "Todos",
