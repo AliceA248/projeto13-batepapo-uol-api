@@ -101,7 +101,10 @@ app.get("/participants", async (req, res) => {
   app.get("/messages", async (req, res) => {
     const { user } = req.headers;
     const limit = parseInt(req.query.limit);
-
+    const limitSchema = joi.object({
+        limit: joi.number().integer().positive().min(1)
+    })
+    const validation = limitSchema.validate(limit)
     if ( validation.error) return res.sendStatus(422)
     try {
       const messages = await db
@@ -190,11 +193,11 @@ app.post("/messages", async (req, res) => {
   });
   
   setInterval(async () => {
-    const inativo = Date.now() - 10000;
+    const inatividade = Date.now() - 10000;
   
     try {
       const inactiveParticipants = await db.collection("participants")
-        .find({ lastStatus: { $lte: inativo } })
+        .find({ lastStatus: { $lte: inatividade } })
         .toArray();
   
       if (inactiveParticipants.length > 0) {
@@ -209,7 +212,7 @@ app.post("/messages", async (req, res) => {
         });
   
         await db.collection("messages").insertMany(inactiveMessages);
-        await db.collection("participants").deleteMany({ lastStatus: { $lte: inativo } });
+        await db.collection("participants").deleteMany({ lastStatus: { $lte: inatividade } });
       }
     } catch (error) {
       console.error(error);
