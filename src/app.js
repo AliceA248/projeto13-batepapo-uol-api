@@ -92,7 +92,7 @@ app.get("/participants", async (req, res) => {
       res.status(201).send("Tudo certo!");
     } catch (error) {
       console.error(error);
-      res.status(500).send("Ocorreu um erro no servidor");
+      res.status(500).send("Erro no servidor");
     }
   });
   
@@ -119,7 +119,7 @@ app.get("/participants", async (req, res) => {
       res.send(messages);
     } catch (error) {
       console.error(error);
-      res.status(500).send("Erro interno no servidor");
+      res.status(500).send("Erro no servidor");
     }
   });
   
@@ -153,7 +153,7 @@ app.post("/messages", async (req, res) => {
     
       await db.collection("messages").insertOne(message);
     
-      res.status(201).send("Mensagem enviada com sucesso");
+      res.status(201).send("Mensagem enviada!");
       
     } catch (error) {
       console.error(error);
@@ -162,69 +162,58 @@ app.post("/messages", async (req, res) => {
   });
   
 
-app.post("/status", async (req, res) => {
-    const { user } = req.headers;
-  
-    try {
-      const participanteCadastrado = await db.collection("participants").findOne({ name: user });
-  
-      if (!participanteCadastrado) {
-        return res.status(404).send("Participante não encontrado");
-      }
-  
-      await db.collection("participants").updateOne(
-        { name: user },
-        { $set: { lastStatus: Date.now() } }
-      );
-  
-      res.sendStatus(200);
-    } catch (error) {
-      console.error(error);
-      res.status(500).send("Erro ao atualizar status do participante");
-    }
-  });
-
   app.post("/status", async (req, res) => {
     const participantName = req.header("User");
     if (!participantName) {
-      return res.status(404).send();
+      res.status(404).send({ message: "Participante não encontrado" });
+      return;
     }
-
-    const participant = await db.collection("participants").findOne({ name: participantName });
-    if (!participant) {
-      return res.status(404).send();
+  
+    try {
+      const participant = await db.collection("participants").findOne({ name: participantName });
+      if (!participant) {
+        res.status(404).send({ message: "Participante não encontrado" });
+        return;
+      }
+  
+      await db.collection("participants").updateOne(
+        { _id: participant._id },
+        { $set: { lastStatus: Date.now() } }
+      );
+  
+      res.status(200).send();
+    } catch (error) {
+      console.error(error);
+      res.status(500).send({ message: "Erro ao atualizar status do participante" });
     }
-
-    await db.collection("participants").updateOne(
-      { _id: participant._id },
-      { $set: { lastStatus: Date.now() } }
-    );
-
-    return res.status(200).send();
   });
-
+  
   setInterval(async () => {
-    const menosDez = Date.now() - 10000;
-
-    const inativos = await db.collection("participants")
-      .find({ lastStatus: { $lte: menosDez } })
-      .toArray();
-
-    if (inativos.length > 0) {
-      const mensagensInativas = inativos.map((participant) => {
-        return {
-          from: participant.name,
-          to: "todos",
-          text: "sai da sala...",
-          type: "status",
-          time: dayjs().format("HH:mm:ss"),
-        };
-      });
-
-      await db.collection("messages").insertMany(mensagensInativas);
-      await db.collection("participants").deleteMany({ lastStatus: { $lte: menosDez } });
+    const inactiveThreshold = Date.now() - 10000;
+  
+    try {
+      const inactiveParticipants = await db.collection("participants")
+        .find({ lastStatus: { $lte: inactiveThreshold } })
+        .toArray();
+  
+      if (inactiveParticipants.length > 0) {
+        const inactiveMessages = inactiveParticipants.map((participant) => {
+          return {
+            from: participant.name,
+            to: "todos",
+            text: "sai da sala...",
+            type: "status",
+            time: dayjs().format("HH:mm:ss"),
+          };
+        });
+  
+        await db.collection("messages").insertMany(inactiveMessages);
+        await db.collection("participants").deleteMany({ lastStatus: { $lte: inactiveThreshold } });
+      }
+    } catch (error) {
+      console.error(error);
     }
-}, 15000);
+  }, 15000);
   
 
 // Deixa o app escutando, à espera de requisições
