@@ -184,35 +184,47 @@ app.post("/status", async (req, res) => {
     }
   });
 
-  async function checkInactiveParticipants() {
-    const menosDez = Date.now() - 100000;
-
-    try {
-      const inativos = await db.collection("participants")
-        .find({ lastStatus: { $lte: menosDez } })
-        .toArray();
-  
-      if (inativos.length > 0) {
-        const mensagensInativas = inativos.map((participant) => {
-          return {
-            from: participant.name,
-            to: "todos",
-            text: "sai da sala...",
-            type: "status",
-            time: dayjs.format("HH:mm:ss")
-          };
-        });
-  
-        await db.collection("messages").insertMany(mensagensInativas);
-        await db.collection("participants").deleteMany({ lastStatus: { $lte: menosDez } });
-      }
-    } catch (error) {
-      console.log(error);
-      res.status(500).send("Erro no setInterval");
+  app.post("/status", async (req, res) => {
+    const participantName = req.header("User");
+    if (!participantName) {
+      return res.status(404).send();
     }
-  }
-  
-  setInterval(checkInactiveParticipants, 15000);
+
+    const participant = await db.collection("participants").findOne({ name: participantName });
+    if (!participant) {
+      return res.status(404).send();
+    }
+
+    await db.collection("participants").updateOne(
+      { _id: participant._id },
+      { $set: { lastStatus: Date.now() } }
+    );
+
+    return res.status(200).send();
+  });
+
+  setInterval(async () => {
+    const menosDez = Date.now() - 10000;
+
+    const inativos = await db.collection("participants")
+      .find({ lastStatus: { $lte: menosDez } })
+      .toArray();
+
+    if (inativos.length > 0) {
+      const mensagensInativas = inativos.map((participant) => {
+        return {
+          from: participant.name,
+          to: "todos",
+          text: "sai da sala...",
+          type: "status",
+          time: dayjs().format("HH:mm:ss"),
+        };
+      });
+
+      await db.collection("messages").insertMany(mensagensInativas);
+      await db.collection("participants").deleteMany({ lastStatus: { $lte: menosDez } });
+    }
+}, 15000);
   
 
 // Deixa o app escutando, à espera de requisições
