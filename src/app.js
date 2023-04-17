@@ -22,6 +22,7 @@ try {
   await mongoClient.connect();
   db = mongoClient.db();
 } catch (error) {
+
   console.log(error);
   console.log("Não está rodando corretamente");
 }
@@ -135,7 +136,7 @@ app.post("/messages", async (req, res) => {
   try {
     const participanteCadastrado = await db.collection("participants").findOne({ name: utf8.decode(user) })
 
-    if (!participanteCadastrado) return res.status(422).send() 
+    if (!participanteCadastrado) return res.status(422)
   
   
   
@@ -170,6 +171,34 @@ app.post("/status", async (req, res) => {
         
     }
 })
+
+setInterval(async() => {
+    const menosDez = Date.now() - 100000
+
+    try {
+        const inativos = await db.collection("participants").find({ lastStatus: { $lte: menosDez } }).toArray()
+
+        if (inativos.length > 0) {
+            const mensagensInativas = inativos.map((participant) => {
+                return {
+                    from: participant.name,
+                    to: "todos",
+                    text: "sai da sala...", type:"status", time: dayjs.format("HH:mm:ss")
+
+                }
+            })
+            await db.collection("messages").insertMany(mensagensInativas)
+            await db.collection("participants").deleteMany(
+                { lastStatus: { $lte: menosDez } }
+            )
+        }
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send("Erro no setInterval")
+    }
+}, 15000
+)
 
 
 // Deixa o app escutando, à espera de requisições
