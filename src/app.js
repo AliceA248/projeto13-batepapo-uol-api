@@ -183,36 +183,6 @@ app.post("/status", async (req, res) => {
       res.status(500).send("Erro ao atualizar status do participante");
     }
   });
-  
-app.delete("/participants", async (req, res) => {
-    const { name } = req.headers;
-  
-    try {
-      const participanteCadastrado = await db.collection("participants").findOne({ name });
-  
-      if (!participanteCadastrado) {
-        return res.status(404).send("Participante não encontrado");
-      }
-  
-      await db.collection("participants").deleteOne({ name });
-  
-      const mensagemSaida = {
-        from: name,
-        to: "Todos",
-        text: "sai da sala...",
-        type: "status",
-        time: dayjs(Date.now()).format("HH:mm:ss"),
-      };
-  
-      await db.collection("messages").insertOne(mensagemSaida);
-  
-      res.sendStatus(204);
-  
-    } catch (error) {
-      console.error(error);
-      res.status(500).send("Erro ao remover participante");
-    }
-  });
 
   async function checkInactiveParticipants() {
     const menosDez = Date.now() - 100000;
