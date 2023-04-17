@@ -4,6 +4,7 @@ import { MongoClient } from "mongodb";
 import joi from "joi";
 import dotenv from "dotenv";
 import dayjs from "dayjs";
+import utf8 from "utf8"
 
 dotenv.config();
 
@@ -89,6 +90,28 @@ app.post("/participants", async (req, res) => {
   }
 });
 
+app.get("/messages", async (req, res) =>{
+    const { user } = req.headers
+    const limit = parseInt(req.query.limit)
+
+    try {
+
+        const todasMensagens = await db.collection("messages").find({ $or: [
+            { from: user },
+            { to: { $in: [user, "todos"]} },
+            { type: "message" }
+        ]
+    }).limit(limit).toArray()
+
+        res.send(todasMensagens)
+        
+    } catch (error) {
+        console.log(error)
+        res.status(500).send("Problema no servidor")
+    }
+
+} )
+
 app.post("/messages", async (req, res) => {
   const { to, text, type } = req.body;
   const { user } = req.headers;
@@ -100,30 +123,52 @@ app.post("/messages", async (req, res) => {
     from: user,
   };
 
-  const { error } = messageValidacaoTipo.validate(
-    { to, text, type, from: user },
-    { abortEarly: false }
-  );
+  const { error } = messageValidacaoTipo.validate({ to, text, type, from: user });
 
   if (error) {
     const erroMensagem = error.details.map((e) => e.message);
     return res.status(422).send(erroMensagem);
   }
 
-  const participanteCadastrado = await db.collection("participants").findOne({ name: user })
+  try {
+    const participanteCadastrado = await db.collection("participants").findOne({ name: utf8.decode(user) })
 
-  if (!participanteCadastrado) return res.status(422).send 
+    if (!participanteCadastrado) return res.status(422).send() 
+  
+  
+  
+    await db.collection("messages").insertOne({
+      ...novaMensagem,
+      time: dayjs().format("HH:mm:ss"),
+    });
+  
+    res.status(201).send("Tudo rodando corretamente");
+    
+  } catch (error) {
+    res.status(500).send("Não está rodando corretamente no banco de dados")
+  }
 
 
-
-
-  await db.collection("messages").insertOne({
-    ...novaMensagem,
-    time: dayjs().format("HH:mm:ss"),
-  });
-
-  res.status(201).send("Tudo rodando corretamente");
 });
+
+app.post("/status", async (req, res) => {
+    const { user } = req.headers
+
+    try {
+
+        const participanteCadastrado = await db.collection("participants").findOne({ name: user })
+        if (!participanteCadastrado) return res.status(404)
+
+        await db.collection("participants").updateOne({ name: user}, { $set: { lastStatus: Date.now() }})
+
+        res.sendStatus(200)
+        
+    } catch (error) {
+        res.status(500).send("Erro no banco de dados")
+        
+    }
+})
+
 
 // Deixa o app escutando, à espera de requisições
 const PORT = 5001;
