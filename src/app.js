@@ -82,7 +82,7 @@ app.get("/participants", async (req, res) => {
       const newStatusMessage = {
         from: name,
         to: "Todos",
-        text: "Entra na sala....",
+        text: "entra na sala....",
         type: "status",
         time: dayjs(Date.now()).format("HH:mm:ss"),
       };
@@ -101,7 +101,11 @@ app.get("/participants", async (req, res) => {
   app.get("/messages", async (req, res) => {
     const { user } = req.headers;
     const limit = parseInt(req.query.limit);
-  
+    const limitSchema = joi.object({
+        limit: joi.number().integer().positive.min(1)
+    })
+    const validation = limitSchema.validate(limit)
+    if ( validation.error) return res.sendStatus(422)
     try {
       const messages = await db
         .collection("messages")
@@ -200,7 +204,7 @@ app.post("/messages", async (req, res) => {
         const inactiveMessages = inactiveParticipants.map((participant) => {
           return {
             from: participant.name,
-            to: "todos",
+            to: "Todos",
             text: "sai da sala...",
             type: "status",
             time: dayjs().format("HH:mm:ss"),
