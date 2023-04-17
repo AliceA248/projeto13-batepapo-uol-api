@@ -40,20 +40,20 @@ app.use(cors());
 // Rotas
 
 app.get("/participants", async (req, res) => {
-  try {
-    const todosParticipantes = await db.collection("participants").find().toArray();
-
-    if (!todosParticipantes.length) {
-      return res.status(404).send("Nenhum usuário foi encontrado");
+    try {
+      const todosParticipantes = await db.collection("participants").find().toArray();
+  
+      if (!todosParticipantes.length) {
+        return res.send([]);
+      }
+  
+      res.send(todosParticipantes);
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("O banco não está rodando corretamente");
     }
-
-    res.send(todosParticipantes);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send("O banco não está rodando corretamente");
-  }
-});
-
+  });
+  
 app.post("/participants", async (req, res) => {
   const { name } = req.body;
 
@@ -117,11 +117,13 @@ app.post("/messages", async (req, res) => {
   const { user } = req.headers;
 
   const novaMensagem = {
+    from: utf8.decode(user),
     to,
     text,
     type,
-    from: user,
+    time: dayjs().format("HH:mm:ss"),
   };
+  
 
   const { error } = messageValidacaoTipo.validate({ to, text, type, from: user });
 
@@ -173,4 +175,3 @@ app.post("/status", async (req, res) => {
 // Deixa o app escutando, à espera de requisições
 const PORT = 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
-  
