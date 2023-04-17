@@ -210,11 +210,10 @@ app.delete("/participants", async (req, res) => {
       res.status(500).send("Erro ao remover participante");
     }
   });
-  
 
-setInterval(async () => {
+  async function checkInactiveParticipants() {
     const menosDez = Date.now() - 100000;
-  
+
     try {
       const inativos = await db.collection("participants")
         .find({ lastStatus: { $lte: menosDez } })
@@ -238,9 +237,10 @@ setInterval(async () => {
       console.log(error);
       res.status(500).send("Erro no setInterval");
     }
-  }, 15000);
+  }
   
-
+  setInterval(checkInactiveParticipants, 15000);
+  
 
 // Deixa o app escutando, à espera de requisições
 const PORT = 5000;
