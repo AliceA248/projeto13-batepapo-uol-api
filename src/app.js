@@ -171,6 +171,6 @@ app.post("/status", async (req, res) => {
 
 
 // Deixa o app escutando, à espera de requisições
-const PORT = 5001;
+const PORT = 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
   
